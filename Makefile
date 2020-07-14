@@ -1,4 +1,9 @@
-CFLAGS ?= -Wall -pedantic -std=c11 -O0 -g
+all: build
 
-um-32: um-32.c
-	$(CC) $(CFLAGS) -o $@ $<
+.PHONY: build
+build:
+	./build.sh
+
+.PHONY: clean
+clean:
+	-rm um-32

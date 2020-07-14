@@ -19,11 +19,29 @@ typedef struct Mem {
     bool active;
 } Mem;
 
+// Universal Machine state
 uint64_t PC;
 uint32_t R[8];  // registers
 Mem *M;         // memory arrays
 uint32_t memarr_count;
 bool halted;
+
+typedef enum Op {
+    CMOV = 0,
+    ARRAY_INDEX = 1,
+    ARRAY_AMEND = 2,
+    ADD = 3,
+    MUL = 4,
+    DIV = 5,
+    NAND = 6,
+    HALT = 7,
+    ALLOC = 8,
+    ABANDON = 9,
+    OUTPUT = 10,
+    INPUT = 11,
+    LOAD_PROG = 12,
+    ORTHOG = 13,
+} Op;
 
 void *xmalloc(size_t size)
 {
@@ -86,23 +104,6 @@ static void um_32_print_debug_state(void)
     }
     printf("\n");
 }
-
-typedef enum Op {
-    CMOV = 0,
-    ARRAY_INDEX = 1,
-    ARRAY_AMEND = 2,
-    ADD = 3,
-    MUL = 4,
-    DIV = 5,
-    NAND = 6,
-    HALT = 7,
-    ALLOC = 8,
-    ABANDON = 9,
-    OUTPUT = 10,
-    INPUT = 11,
-    LOAD_PROG = 12,
-    ORTHOG = 13,
-} Op;
 
 static const char *um_32_op_name(Op op)
 {
@@ -190,21 +191,14 @@ static void um_32_spin_cycle(void)
         uint32_t reg_a = (inst >>  6) & 0x7;
         uint32_t reg_b = (inst >>  3) & 0x7;
         uint32_t reg_c = (inst >>  0) & 0x7;
+        // DISPATCH INSTRUCTION
         switch (opnum) {
-            case CMOV: // conditional move
-                /*
-                  The register A receives the value in register B,
-                  unless the register C contains 0.
-                  */
+            case CMOV:
                 if (R[reg_c] != 0) {
                     R[reg_a] = R[reg_b];
                 }
                 break;
-            case ARRAY_INDEX: // array index
-                /*
-                  The register A receives the value stored at offset
-                  in register C in the array identified by B.
-                  */
+            case ARRAY_INDEX:
                 {
                     uint32_t idx = R[reg_b];
                     if (!M[idx].active || idx > (memarr_count - 1)) {
@@ -214,11 +208,7 @@ static void um_32_spin_cycle(void)
                     R[reg_a] = M[idx].inst[off];
                 }
                 break;
-            case ARRAY_AMEND: // array amendment
-                /*
-                  The array identified by A is amended at the offset
-                  in register B to store the value in register C.
-                  */
+            case ARRAY_AMEND:
                 {
                     uint32_t idx = R[reg_a];
                     if (!M[idx].active || idx > (memarr_count - 1)) {
@@ -228,55 +218,23 @@ static void um_32_spin_cycle(void)
                     M[idx].inst[off] = R[reg_c];
                 }
                 break;
-            case ADD: // addition
-                /*
-                  The register A receives the value in register B plus 
-                  the value in register C, modulo 2^32.
-                  */
+            case ADD:
                 R[reg_a] = R[reg_b] + R[reg_c];
                 break;
-            case MUL: // multiplication
-                /*
-                  The register A receives the value in register B times
-                  the value in register C, modulo 2^32.
-                  */
+            case MUL:
                 R[reg_a] = R[reg_b] * R[reg_c];
                 break;
-            case DIV: // division
-                /*
-                  The register A receives the value in register B
-                  divided by the value in register C, if any, where
-                  each quantity is treated treated as an unsigned 32
-                  bit number.
-                */
+            case DIV:
                 R[reg_a] = R[reg_b] / R[reg_c];
                 break;
-            case NAND: // not-and
-                /*
-                  Each bit in the register A receives the 1 bit if
-                  either register B or register C has a 0 bit in that
-                  position.  Otherwise the bit in register A receives
-                  the 0 bit.
-                */
+            case NAND:
                 R[reg_a] = ~(R[reg_b] & R[reg_c]);
                 break;
-            case HALT: // halt
-                /*
-                  The universal machine stops computation.
-                */
+            case HALT:
                 halted = true;
                 break;
-            case ALLOC: // allocation
-                /*
-                  A new array is created with a capacity of platters
-                  commensurate to the value in the register C. This
-                  new array is initialized entirely with platters
-                  holding the value 0. A bit pattern not consisting of
-                  exclusively the 0 bit, and that identifies no other
-                  active allocated array, is placed in the B register.
-                */
+            case ALLOC:
                 {
-                    printf("Allocating memory (%d -> %d) %d bytes.\n", memarr_count, memarr_count+1, R[reg_c] * 4);
                     memarr_count += 1;
                     uint32_t idx = memarr_count - 1;
                     M = xrealloc(M, sizeof(Mem) * memarr_count);
@@ -286,11 +244,7 @@ static void um_32_spin_cycle(void)
                     R[reg_b] = idx;
                 }
                 break;
-            case ABANDON: // abandon
-                /*
-                  The array identified by the register C is abandoned.
-                  Future allocations may then reuse that identifier.
-                  */
+            case ABANDON:
                 {
                     uint32_t idx = R[reg_c];
                     if (idx == 0 || !M[idx].active) {
@@ -299,86 +253,32 @@ static void um_32_spin_cycle(void)
                     M[idx].active = false;
                 }
                 break;
-            case OUTPUT: // output
-                /*
-                  The value in the register C is displayed on the console
-                  immediately. Only values between and including 0 and 255
-                  are allowed.
-                */
-                {
-                    int c = (int)R[reg_c];
-                    if (isprint(c)) {
-                        printf("%c", c);
-                    } else {
-                        printf("0x%02x", c);
-                    }
-                }
+            case OUTPUT:
+                putchar(R[reg_c]);
                 break;
-            case INPUT: // input
-                /*
-                  The universal machine waits for input on the console.
-                  When input arrives, the register C is loaded with the
-                  input, which must be between and including 0 and 255.
-                  If the end of input has been signaled, then the 
-                  register C is endowed with a uniform value pattern
-                  where every place is pregnant with the 1 bit.
-                  */
+            case INPUT:
                 {
                     int c = getchar();
                     if (c != EOF) {
-                        R[reg_c] = c & 0xff;
+                        R[reg_c] = (uint8_t)c;
                     } else {
                         R[reg_c] = 0xffffffff;
                     }
                 }
                 break;
-            case LOAD_PROG: // load program
-                /*
-                  The array identified by the B register is duplicated
-                  and the duplicate shall replace the '0' array,
-                  regardless of size. The execution finger is placed
-                  to indicate the platter of this array that is
-                  described by the offset given in C, where the value
-                  0 denotes the first platter, 1 the second, et
-                  cetera.
-
-                  The '0' array shall be the most sublime choice for
-                  loading, and shall be handled with the utmost
-                  velocity.
-                */
+            case LOAD_PROG:
                 {
                     uint32_t idx = R[reg_b];
-                    Mem m = M[idx];
-                    M[0].inst = m.inst;
-                    M[0].len = m.len;
+                    if (idx != 0) {
+                        Mem m = M[idx];
+                        M[0].inst = xrealloc(M[0].inst, m.len * 4);;
+                        M[0].len = m.len;
+                        memcpy(M[0].inst, m.inst, m.len * 4);
+                    }
                     PC = R[reg_c];
                 }
                 break;
-            case ORTHOG: // orthography
-                /*
-				  One special operator does not describe registers in the same way.
-				  Instead the three bits immediately less significant than the four
-				  instruction indicator bits describe a single register A. The
-				  remainder twenty five bits indicate a value, which is loaded
-				  forthwith into the register A.
-
-								   A  
-								   |  
-								   vvv
-							  .--------------------------------.
-							  |VUTSRQPONMLKJIHGFEDCBA9876543210|
-							  `--------------------------------'
-							   ^^^^   ^^^^^^^^^^^^^^^^^^^^^^^^^
-							   |      |
-							   |      value
-							   |
-							   operator number
-
-						   	   Figure 3. Special Operators
-
-                  The value indicated is loaded into the register A
-                  forthwith.
-                  */
+            case ORTHOG:
                 {
                     uint8_t reg_a = (inst >> 25) & 0x7;
                     uint32_t val = inst & 0x1ffffff;
@@ -388,9 +288,8 @@ static void um_32_spin_cycle(void)
             default:
                 EXCEPTION(inst);
         }
-        // DISPATCH INSTRUCTION
     }
-    printf("\nProgram halted.\n");
+    fprintf(stderr, "\n** Program halted.\n");
 }
 
 void usage()
@@ -434,7 +333,7 @@ int main(int argc, char **argv)
     fclose(f);
 
     um_32_init(prog);
-    fprintf(stderr, "UM-32 initialized, program %lu bytes.\n", prog.len);
+    fprintf(stderr, "** UM-32 initialized, program %lu bytes.\n", prog.len);
     free_buffer(prog);
 
     um_32_spin_cycle();
