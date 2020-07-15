@@ -37,21 +37,48 @@ uint32_t memarr_count;
 bool halted;
 
 typedef enum Op {
-    CMOV = 0,
-    ARRAY_INDEX = 1,
-    ARRAY_AMEND = 2,
-    ADD = 3,
-    MUL = 4,
-    DIV = 5,
-    NAND = 6,
-    HALT = 7,
-    ALLOC = 8,
-    ABANDON = 9,
-    OUTPUT = 10,
-    INPUT = 11,
-    LOAD_PROG = 12,
-    ORTHOG = 13,
+    CMOV,
+    ARRAY_INDEX,
+    ARRAY_AMEND,
+    ADD,
+    MUL,
+    DIV,
+    NAND,
+    HALT,
+    ALLOC,
+    ABANDON,
+    OUTPUT,
+    INPUT,
+    LOAD_PROG,
+    ORTHOG,
+
+    NUM_OPS,
 } Op;
+
+const char *op_names[] = {
+    "cmov",
+    "arrind",
+    "arramend",
+    "add",
+    "mul",
+    "div",
+    "nand",
+    "halt",
+    "alloc",
+    "abandon",
+    "output",
+    "input",
+    "loadprog",
+    "orthog"
+};
+
+static const char *um_32_op_name(Op op)
+{
+    if (op >= 0 && op < NUM_OPS) {
+        return op_names[op];
+    }
+    return "UNKNOWN";
+}
 
 void *xmalloc(size_t size)
 {
@@ -112,42 +139,6 @@ static void um_32_print_debug_state(void)
         printf("R[%d]=%u ", i, R[i]);
     }
     printf("\n");
-}
-
-static const char *um_32_op_name(Op op)
-{
-    switch (op) {
-        case CMOV:
-            return "cmov";
-        case ARRAY_INDEX:
-            return "arrind";
-        case ARRAY_AMEND:
-            return "arramend";
-        case ADD:
-            return "add";
-        case MUL:
-            return "mul";
-        case DIV:
-            return "div";
-        case NAND:
-            return "nand";
-        case HALT:
-            return "halt";
-        case ALLOC:
-            return "alloc";
-        case ABANDON:
-            return "abandon";
-        case OUTPUT:
-            return "output";
-        case INPUT:
-            return "input";
-        case LOAD_PROG:
-            return "loadprog";
-        case ORTHOG:
-            return "orthog";
-        default:
-            return "UNKNOWNOP";
-    }
 }
 
 static void um_32_print_debug_inst(uint32_t inst)
