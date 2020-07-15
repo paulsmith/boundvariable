@@ -13,14 +13,24 @@ typedef struct Buffer {
     size_t len;
 } Buffer;
 
+void free_buffer(Buffer b)
+{
+    free(b.data);
+}
+
 typedef struct Mem {
     uint32_t *inst;
     size_t len;
     bool active;
 } Mem;
 
-// Universal Machine state
-uint64_t PC;
+void free_mem(Mem m)
+{
+    free(m.inst);
+}
+
+// Machine state
+uint32_t PC;
 uint32_t R[8];  // registers
 Mem *M;         // memory arrays
 uint32_t memarr_count;
@@ -98,7 +108,7 @@ static void um_32_init(Buffer prog)
 
 static void um_32_print_debug_state(void)
 {
-    printf("PC=%lu ", PC);
+    printf("PC=%u ", PC);
     for (int i = 0; i < 8; i++) {
         printf("R[%d]=%u ", i, R[i]);
     }
@@ -173,13 +183,12 @@ static void um_32_print_debug_inst(uint32_t inst)
 
 static void um_32_spin_cycle(void)
 {
-    Mem m0 = M[0];
     while (!halted) {
-        if (PC >= m0.len) {
+        if (PC >= M[0].len) {
             EXCEPTION(0);
         }
         // FETCH INSTRUCTION
-        uint32_t inst = m0.inst[PC];
+        uint32_t inst = M[0].inst[PC];
 #ifdef DEBUG
         um_32_print_debug_inst(inst);
 		um_32_print_debug_state();
@@ -270,10 +279,18 @@ static void um_32_spin_cycle(void)
                 {
                     uint32_t idx = R[reg_b];
                     if (idx != 0) {
-                        Mem m = M[idx];
-                        M[0].inst = xrealloc(M[0].inst, m.len * 4);;
-                        M[0].len = m.len;
-                        memcpy(M[0].inst, m.inst, m.len * 4);
+                        Mem src = M[idx];
+#if 0
+                        fprintf(stderr, "** LOADING PROGRAM %d (%ld bytes)\n", idx, src.len * 4);
+#endif
+                        Mem dest = {0};
+                        dest.inst = xmalloc(src.len * 4);
+                        memcpy(dest.inst, src.inst, src.len * 4);
+                        dest.len = src.len;
+                        dest.active = true;
+                        Mem old = M[0];
+                        M[0] = dest;
+                        free_mem(old);
                     }
                     PC = R[reg_c];
                 }
@@ -311,11 +328,6 @@ Buffer read_entire_file(FILE *f)
         exit(1);
     }
     return buf;
-}
-
-void free_buffer(Buffer b)
-{
-    free(b.data);
 }
 
 int main(int argc, char **argv)
