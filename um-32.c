@@ -119,46 +119,32 @@ static const char *um_32_op_name(Op op)
     switch (op) {
         case CMOV:
             return "cmov";
-            break;
         case ARRAY_INDEX:
             return "arrind";
-            break;
         case ARRAY_AMEND:
             return "arramend";
-            break;
         case ADD:
             return "add";
-            break;
         case MUL:
             return "mul";
-            break;
         case DIV:
             return "div";
-            break;
         case NAND:
             return "nand";
-            break;
         case HALT:
             return "halt";
-            break;
         case ALLOC:
             return "alloc";
-            break;
         case ABANDON:
             return "abandon";
-            break;
         case OUTPUT:
             return "output";
-            break;
         case INPUT:
             return "input";
-            break;
         case LOAD_PROG:
             return "loadprog";
-            break;
         case ORTHOG:
             return "orthog";
-            break;
         default:
             return "UNKNOWNOP";
     }
