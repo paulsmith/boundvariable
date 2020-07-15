@@ -287,6 +287,13 @@ static void um_32_spin_cycle(void)
 #endif
 }
 
+static void um_32_shutdown(void)
+{
+    while (memarr_count--) {
+        free_mem(M[memarr_count]);
+    }
+}
+
 void usage()
 {
     fprintf(stderr, "Usage: %s program\n", program_invocation_name);
@@ -327,8 +334,8 @@ int main(int argc, char **argv)
     fprintf(stderr, "** UM-32 initialized, program %lu bytes.\n", prog.len);
 #endif
     free_buffer(prog);
-
     um_32_spin_cycle();
+    um_32_shutdown();
 
     return 0;
 }
