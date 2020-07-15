@@ -85,7 +85,6 @@ void *xrealloc(void *oldptr, size_t newsize)
 
 static void um_32_init(Buffer prog)
 {
-    assert(prog.len && prog.len % 4 == 0);
     PC = 0;
     memset(R, 0, 4 * 8);
     Mem m0 = {0};
@@ -306,7 +305,9 @@ static void um_32_spin_cycle(void)
                 EXCEPTION(inst);
         }
     }
+#if 0
     fprintf(stderr, "\n** Program halted.\n");
+#endif
 }
 
 void usage()
@@ -345,7 +346,9 @@ int main(int argc, char **argv)
     fclose(f);
 
     um_32_init(prog);
+#if 0
     fprintf(stderr, "** UM-32 initialized, program %lu bytes.\n", prog.len);
+#endif
     free_buffer(prog);
 
     um_32_spin_cycle();
