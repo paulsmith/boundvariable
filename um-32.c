@@ -176,7 +176,7 @@ static void um_32_spin_cycle(void)
         uint32_t inst = M[0].inst[PC];
 #ifdef DEBUG
         um_32_print_debug_inst(inst);
-		um_32_print_debug_state();
+        um_32_print_debug_state();
 #endif
         // ADVANCE PC
         PC += 1;
